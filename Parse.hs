@@ -47,6 +47,7 @@ parseQuoted = do
 parseExpr = parseNumber
             <|> parseAtom
             <|> parseString
+            <|> parseQuoted
             <|> do char '('
                    x <- try parseList <|> parseDotted
                    char ')'
