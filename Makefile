@@ -1,4 +1,4 @@
-SRC:=Values.hs Parse.hs Main.hs
+SRC:=Values.hs Parse.hs Eval.hs Main.hs
 
 .PHONY: all
 all: interp
