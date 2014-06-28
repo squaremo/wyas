@@ -6,3 +6,4 @@ data Val = Atom String
          | Number Integer
          | String String
          | Bool Bool
+         deriving (Show)

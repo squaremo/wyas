@@ -5,4 +5,6 @@ import Parse
 
 main = do
   args <- getArgs
-  putStrLn $ readExpr (args !! 0)
+  putStrLn $ case readExpr (args !! 0) of
+    Left err  -> "Error: " ++ show err
+    Right val -> show val

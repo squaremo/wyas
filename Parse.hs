@@ -32,14 +32,29 @@ parseAtom = do
 parseNumber =
   liftM (Number . read) $ many1 digit
 
-parseExpr = parseNumber <|> parseAtom <|> parseString
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDotted = do
+  head <- endBy parseExpr spaces
+  tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList head tail
+
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
+
+parseExpr = parseNumber
+            <|> parseAtom
+            <|> parseString
+            <|> do char '('
+                   x <- try parseList <|> parseDotted
+                   char ')'
+                   return x
 
 -- NB the monadic bind-without-value; spaces and symbol are both
 -- instances of the Parse monad, and we want to throw out the result
 -- of spaces
-program = (spaces >> parseExpr)
+program = parseExpr
 
-readExpr :: String -> String
-readExpr input = case parse program "lisp" input of
-  Left err  -> "No match: " ++ show err
-  Right val -> "Found value"
+readExpr = parse program "scheme"
