@@ -1,21 +1,30 @@
 module Eval where
 
+import Control.Monad.Error
+
 import Values
+import Error
 
-eval val@(String _) = val
-eval val@(Number _) = val
-eval val@(Bool _)   = val
-eval (List [Atom "quote", val]) = val
-eval (List (func : args)) =
-  apply (eval func) (map eval args)
+eval :: Val -> ThrowsError Val
+eval val@(String _) = return val
+eval val@(Number _) = return val
+eval val@(Bool _)   = return val
+eval (List [Atom "quote", val]) = return val
+eval (List (h : t)) = do
+  func <- eval h
+  args <- mapM eval t
+  apply func args
 --eval (DottedList (func : args) rest) =
---  apply (eval func) $ map eval args ++ eval rest
-eval (Atom s) = maybe alwaysFalse id $ lookup s primitives
+--  return $ apply (eval func) $ map eval $ args ++ (listify $ eval rest)
+eval (Atom s) =
+  maybe (throwError $ UnboundVar "Unbound variable" s) return $ lookup s primitives
+eval bad = throwError $ BadSpecialForm "Malformed expression" bad
 
-alwaysFalse = Primitive "alwaysFalse" (\ _ -> Bool False)
+listify (List as) = as
 
-apply :: Val -> [Val] -> Val
-apply (Primitive _ f) args = f args
+apply :: Val -> [Val] -> ThrowsError Val
+apply (Primitive _ f) args = return $ f args
+apply f _ = throwError $ NotFunction "Attempt to apply non-function" $ show f
 
 primitives :: [(String,  Val)]
 primitives = [("+", numericBinOp "+" (+))]
