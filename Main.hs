@@ -6,7 +6,6 @@ import Control.Monad.Error
 import Parse
 import Values
 import Eval
-import Error
 
 evalString :: String -> ThrowsError Val
 evalString s = case readExpr s of
