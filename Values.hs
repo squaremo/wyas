@@ -32,7 +32,7 @@ showVal Undefined = "<undefined>"
 
 -- Include errors here, since they are interdependent
 
-data Err = Arity Integer [Val]
+data Err = WrongArity Integer [Val]
          | TypeMismatch String Val
          | ParseErr ParseError
          | BadSpecialForm String Val
