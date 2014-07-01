@@ -58,4 +58,4 @@ parseExpr = parseNumber
 -- of spaces
 program = parseExpr
 
-readExpr = parse program "scheme"
+parseProgram = parse program "scheme"
