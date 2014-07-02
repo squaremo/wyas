@@ -3,6 +3,7 @@ module Values where
 import Text.Show.Functions
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec
+import Data.IORef
 
 data Val = Atom String
          | List [Val]
@@ -11,8 +12,16 @@ data Val = Atom String
          | String String
          | Bool Bool
          | Primitive String ([Val] -> ThrowsError Val)
+           -- as per the book, using a recod for the halibut
+         | Func { params :: [String],
+                  vararg :: Maybe String,
+                  body :: [Val],
+                  closure :: Env }
          | Undefined
-         deriving (Show)
+
+-- The environment itself gets mutationed, and the individual cells
+-- (variables) can get mutationed.
+type Env = IORef [(String, IORef Val)]
 
 unwordsList = unwords . map showVal
 
@@ -25,10 +34,15 @@ showVal (String s) = "\"" ++ s ++ "\""
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
 showVal (Primitive s fn) = "<primitive " ++ s ++ ">"
+showVal (Func { params = args, vararg = varargs,
+                body = body, closure = env }) =
+  "(lambda (" ++ unwords args ++
+  (case varargs of
+    Nothing -> ""
+    Just a  -> " . " ++ a) ++ ") ... )"
 showVal Undefined = "<undefined>"
 
--- I've resisted instantiating Show with showVal, because I'd like to
--- see the internal structure too
+instance Show Val where show = showVal
 
 -- Include errors here, since they are interdependent
 

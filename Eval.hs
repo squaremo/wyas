@@ -5,10 +5,6 @@ import Data.IORef
 
 import Values
 
--- The environment itself gets mutationed, and the individual cells
--- (variables) can get mutationed.
-type Env = IORef [(String, IORef Val)]
-
 -- Error monad, with Left of Err and Right of IO (something)
 type IOThrowsError = ErrorT Err IO
 
@@ -24,10 +20,7 @@ nullEnv :: IO Env
 nullEnv = newIORef []
 
 initEnv :: IO Env
-initEnv = mapM primRef primitives >>= newIORef
-  where primRef (var, value) = do
-          ref <- newIORef value
-          return (var, ref)
+initEnv = nullEnv >>= (flip bindVars $ primitives)
 
 isBound envRef var = readIORef envRef >>=
                   return . maybe False (const True) . lookup var
@@ -88,24 +81,49 @@ eval env (List [Atom "set!", Atom var, form]) =
   eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) =
   eval env form >>= defineVar env var
+eval env (List (Atom "lambda" : List params : body)) =
+  mkLambda env params body
+eval env (List (Atom "lambda" : DottedList params (Atom varargs) : body)) =
+  mkVarargsLambda varargs env params body
+eval env (List (Atom "lambda" : Atom varargs : body)) =
+  mkVarargsLambda varargs env [] body
+
 -- any list forms left are applications
 eval env (List (h : t)) = do
   func <- eval env h
   args <- mapM (eval env) t
-  liftThrows . apply func $ args
+  apply func $ args
 --eval (DottedList (func : args) rest) =
 --  return $ apply (eval func) $ map eval $ args ++ (listify $ eval rest)
 
 eval env bad = throwError $ BadSpecialForm "Malformed expression" bad
 
 evalProgn env [] = return Undefined
-evalProgn env [last] = eval env last
-evalProgn env (first : rest) = do
-  eval env first >> evalProgn env rest
+evalProgn env exprs =
+  liftM last $ mapM (eval env) exprs
 
-apply :: Val -> [Val] -> ThrowsError Val
-apply (Primitive _ f) args = f args
-apply f _ = throwError $ NotFunction "Attempt to apply non-function" $ show f
+apply :: Val -> [Val] -> IOThrowsError Val
+apply (Primitive _ f) args = liftThrows $ f args
+apply (Func params varargs body closure) args =
+  if num params /= num args && varargs == Nothing
+  then throwError $ WrongArity (num params) args
+  else
+    do env0 <- (liftIO $ bindVars closure $ zip params args)
+       env1 <- bindVarArgs varargs env0
+       evalProgn env1 body
+  where remainingArgs = drop (length params) args
+        num = toInteger . length
+        bindVarArgs arg env = case arg of
+          Nothing -> return env
+          Just v -> liftIO $ bindVars env [(v, List $ remainingArgs)]
+apply f _ = throwError $ NotFunction "Attempt to apply non-function" $ showVal f
+
+mkFunc varargs env params body =
+  return $ Func (map atomName params) varargs body env
+mkLambda = mkFunc Nothing
+mkVarargsLambda = mkFunc . Just
+
+atomName (Atom s) = s
 
 primitives :: [(String,  Val)]
 primitives = [("+", numericBinOp "+" (+)),
