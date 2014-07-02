@@ -49,7 +49,9 @@ instance Error Err where
 -- NB partially applied type constructor
 type ThrowsError = Either Err
 
+-- Convert (left) errors to (right) string values
 trapError either = catchError either (return . show)
 
--- NB only defined for values, not errors
+-- NB only defined for values, not errors; intended to be used after
+-- trapError or similar
 extractValue (Right val) = val
