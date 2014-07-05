@@ -2,11 +2,10 @@ module Eval where
 
 import Control.Monad.Error
 import Data.IORef
+import System.IO
 
 import Values
-
--- Error monad, with Left of Err and Right of IO (something)
-type IOThrowsError = ErrorT Err IO
+import Parse
 
 -- I effectively have two error monads; this lifts values of the
 -- "inner" to those of the "outer", so they can be dealt with
@@ -14,13 +13,25 @@ type IOThrowsError = ErrorT Err IO
 liftThrows (Left err) = throwError err
 liftThrows (Right val) = return val
 
+readOrThrow parser s = case runParser parser s of
+  Left err -> throwError $ ParseErr err
+  Right val -> return val
+
+readExpr :: String -> ThrowsError Val
+readExpr = readOrThrow parseExpr
+
+readExprs :: String -> ThrowsError [Val]
+readExprs = readOrThrow parseExprs
+
 -- Environments
 
 nullEnv :: IO Env
 nullEnv = newIORef []
 
 initEnv :: IO Env
-initEnv = nullEnv >>= (flip bindVars $ primitives)
+initEnv = nullEnv >>=
+          (flip bindVars $ primitives ++ (map mkIOPrim ioprimitives))
+  where mkIOPrim (var, func) = (var, IOPrimitive var func)
 
 isBound envRef var = readIORef envRef >>=
                   return . maybe False (const True) . lookup var
@@ -104,6 +115,7 @@ evalProgn env exprs =
 
 apply :: Val -> [Val] -> IOThrowsError Val
 apply (Primitive _ f) args = liftThrows $ f args
+apply (IOPrimitive _ f) args = f args
 apply (Func params varargs body closure) args =
   if num params /= num args && varargs == Nothing
   then throwError $ WrongArity (num params) args
@@ -133,6 +145,32 @@ primitives = [("+", numericBinOp "+" (+)),
               ("car", Primitive "car" car),
               ("cdr", Primitive "cdr" cdr),
               ("eqv?", Primitive "eqv?" eqv)]
+
+ioprimitives = [("apply", applyProc),
+                ("open-input-file", makePort ReadMode),
+                ("open-output-file", makePort WriteMode),
+                ("close-input-port", closeProc),
+                ("close-output-port", closeProc),
+                ("read", readProc),
+                ("write", writeProc)]
+
+-- This isn't quite R5RS apply
+applyProc [func, List args] = apply func args
+applyProc (func : args) = apply func args
+
+makePort mode [String filename] =
+  liftM Port $ liftIO $ openFile filename mode
+
+readProc [] = readProc [Port stdin]
+readProc [Port handle] =
+  (liftIO $ hGetLine handle) >>= liftThrows . readExpr
+
+writeProc [val] = writeProc [val, Port stdout]
+writeProc [val, Port handle] =
+  liftIO $ hPrint handle val >> (return $ Bool True)
+
+closeProc [Port handle] =
+  liftIO $ hClose handle >> (return $ Bool True)
 
 numericBinOp name op =
   Primitive name fn

@@ -53,9 +53,6 @@ parseExpr = parseNumber
                    char ')'
                    return x
 
--- NB the monadic bind-without-value; spaces and symbol are both
--- instances of the Parse monad, and we want to throw out the result
--- of spaces
-program = parseExpr
+parseExprs = endBy parseExpr spaces
 
-parseProgram = parse program "scheme"
+runParser parser = parse parser "scheme"

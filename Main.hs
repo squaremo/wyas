@@ -1,8 +1,8 @@
 module Main where
 
 import System.Environment
-import System.IO
 import Control.Monad.Error
+import System.IO
 
 import Parse
 import Values
@@ -14,10 +14,6 @@ runIOThrows action = runErrorT (trapError action) >>= return . extractValue
 flushStr s = putStr s >> hFlush stdout
 
 readPrompt p = flushStr p >> getLine
-
-readExpr s = case parseProgram s of
-  Left err  -> throwError $ ParseErr err
-  Right val -> return val
 
 evalString :: Env -> String -> IO String
 evalString env s =

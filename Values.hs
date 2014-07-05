@@ -1,5 +1,6 @@
 module Values where
 
+import System.IO
 import Text.Show.Functions
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec
@@ -13,10 +14,12 @@ data Val = Atom String
          | Bool Bool
          | Primitive String ([Val] -> ThrowsError Val)
            -- as per the book, using a recod for the halibut
+         | IOPrimitive String ([Val] -> IOThrowsError Val)
          | Func { params :: [String],
                   vararg :: Maybe String,
                   body :: [Val],
                   closure :: Env }
+         | Port Handle
          | Undefined
 
 -- The environment itself gets mutationed, and the individual cells
@@ -33,13 +36,15 @@ showVal (Number i) = show i
 showVal (String s) = "\"" ++ s ++ "\""
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
-showVal (Primitive s fn) = "<primitive " ++ s ++ ">"
+showVal (Primitive s _) = "<primitive " ++ s ++ ">"
+showVal (IOPrimitive s _) = "<primitive " ++ s ++ ">"
 showVal (Func { params = args, vararg = varargs,
                 body = body, closure = env }) =
   "(lambda (" ++ unwords args ++
   (case varargs of
     Nothing -> ""
     Just a  -> " . " ++ a) ++ ") ... )"
+showVal (Port _) = "<port>"
 showVal Undefined = "<undefined>"
 
 instance Show Val where show = showVal
@@ -62,6 +67,9 @@ instance Error Err where
 
 -- NB partially applied type constructor
 type ThrowsError = Either Err
+
+-- Error monad, with Left of Err and Right of IO (something)
+type IOThrowsError = ErrorT Err IO
 
 -- Convert (left) errors to (right) string values
 trapError either = catchError either (return . show)
