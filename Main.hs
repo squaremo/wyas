@@ -28,14 +28,14 @@ until_ exitp prompt action = do
     then return ()
     else action result >> until_ exitp prompt action
 
-runExpr expr = nullEnv >>= flip evalAndPrint expr
+runFile args = do
+  env <- initEnv >>= flip bindVars [("argv", List $ map String $ drop 1 args)]
+  _ <- runIOThrows $ liftM show $ eval env (List [Atom "load", String (args !! 0)])
+  return ()
 
 runRepl =
   initEnv >>= until_ (== "quit") (readPrompt "repl> ") . evalAndPrint
 
 main = do
   args <- getArgs
-  case length args of
-    0 -> runRepl
-    1 -> runExpr (args !! 0)
-    otherwise -> putStrLn "Expects either an expression or nothing"
+  if null args then runRepl else runFile $ args
