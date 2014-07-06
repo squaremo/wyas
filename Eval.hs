@@ -100,6 +100,11 @@ eval env (List (Atom "lambda" : DottedList params (Atom varargs) : body)) =
   mkVarargsLambda varargs env params body
 eval env (List (Atom "lambda" : Atom varargs : body)) =
   mkVarargsLambda varargs env [] body
+-- load is a special form, because the environment isn't available
+-- otherwise
+eval env (List [Atom "load", val]) = do
+  filename <- eval env val
+  loadFile filename >>= evalProgn env
 
 -- any list forms left are applications
 eval env (List (h : t)) = do
@@ -141,6 +146,7 @@ atomName (Atom s) = s
 
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
+              ("*", numericBinOp (*)),
               ("<", boolBinOp unpackNum (<)),
               ("cons", cons),
               ("car", car),
@@ -172,6 +178,9 @@ writeProc [val, Port handle] =
 
 closeProc [Port handle] =
   liftIO $ hClose handle >> (return $ Bool True)
+
+loadFile (String filename) =
+  (liftIO $ readFile filename) >>= liftThrows . readExprs
 
 numericBinOp op vs =
   do
