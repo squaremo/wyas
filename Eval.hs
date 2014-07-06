@@ -30,8 +30,10 @@ nullEnv = newIORef []
 
 initEnv :: IO Env
 initEnv = nullEnv >>=
-          (flip bindVars $ primitives ++ (map mkIOPrim ioprimitives))
-  where mkIOPrim (var, func) = (var, IOPrimitive var func)
+          (flip bindVars $
+           (map (mkFunc Primitive) primitives) ++
+           (map (mkFunc IOPrimitive) ioprimitives))
+  where mkFunc constructor (var, func) = (var, constructor var func)
 
 isBound envRef var = readIORef envRef >>=
                   return . maybe False (const True) . lookup var
@@ -137,14 +139,13 @@ mkVarargsLambda = mkFunc . Just
 
 atomName (Atom s) = s
 
-primitives :: [(String,  Val)]
-primitives = [("+", numericBinOp "+" (+)),
-              ("-", numericBinOp "-" (-)),
-              ("<", boolBinOp unpackNum "<" (<)),
-              ("cons", Primitive "cons" cons),
-              ("car", Primitive "car" car),
-              ("cdr", Primitive "cdr" cdr),
-              ("eqv?", Primitive "eqv?" eqv)]
+primitives = [("+", numericBinOp (+)),
+              ("-", numericBinOp (-)),
+              ("<", boolBinOp unpackNum (<)),
+              ("cons", cons),
+              ("car", car),
+              ("cdr", cdr),
+              ("eqv?", eqv)]
 
 ioprimitives = [("apply", applyProc),
                 ("open-input-file", makePort ReadMode),
@@ -172,21 +173,19 @@ writeProc [val, Port handle] =
 closeProc [Port handle] =
   liftIO $ hClose handle >> (return $ Bool True)
 
-numericBinOp name op =
-  Primitive name fn
-  where fn = \vs -> do
-          nums <- mapM unpackNum vs
-          let v = foldl1 op nums
-          return $ Number v
+numericBinOp op vs =
+  do
+    nums <- mapM unpackNum vs
+    let v = foldl1 op nums
+    return $ Number v
 
 -- Slight departure again: I let comparisons run to >2 arguments too
 -- (Schemes tend to do this)
-boolBinOp unpack name op =
-  Primitive name fn
-  where fn = \vs -> do
-          args <- mapM unpack vs
-          let v = and $ zipWith op args (drop 1 args)
-          return $ Bool v
+boolBinOp unpack op vs =
+  do
+    args <- mapM unpack vs
+    let v = and $ zipWith op args (drop 1 args)
+    return $ Bool v
 
 car [(List (h : _))] = return h
 car [(DottedList (h : _) _)] = return h
