@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Parse where
 
 import Control.Monad
@@ -27,7 +28,7 @@ parseAtom = do
     _    -> Atom a
 
 
--- I need my number reader to operate on the Parser monad, hence the
+-- I need my number reader to operate on the Parsec monad, hence the
 -- liftM
 parseNumber =
   liftM (Number . read) $ many1 digit

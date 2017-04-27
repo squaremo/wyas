@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Eval where
 
 import Control.Monad.Error
