@@ -93,8 +93,14 @@ eval env (List [Atom "if", pred, conseq, alter]) = do
 eval env (List ((Atom "begin") : rest)) = evalProgn env rest
 eval env (List [Atom "set!", Atom var, form]) =
   eval env form >>= setVar env var
+
 eval env (List [Atom "define", Atom var, form]) =
   eval env form >>= defineVar env var
+eval env (List (Atom "define" : List (Atom name : args) : body)) =
+  mkLambda env args body >>= defineVar env name
+eval env (List (Atom "define" : DottedList (Atom name : args) (Atom varargs) : body)) =
+  mkVarargsLambda varargs env args body >>= defineVar env name
+
 eval env (List (Atom "lambda" : List params : body)) =
   mkLambda env params body
 eval env (List (Atom "lambda" : DottedList params (Atom varargs) : body)) =
