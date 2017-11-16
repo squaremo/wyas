@@ -5,6 +5,7 @@ import Text.Show.Functions
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec
 import Data.IORef
+import Data.List
 
 data Val = Atom String
          | List [Val]
@@ -20,6 +21,7 @@ data Val = Atom String
                   body :: [Val],
                   closure :: Env }
          | Port Handle
+         | Map [(Val, Val)]
          | Undefined
 
 -- The environment itself gets mutationed, and the individual cells
@@ -27,6 +29,8 @@ data Val = Atom String
 type Env = IORef [(String, IORef Val)]
 
 unwordsList = unwords . map showVal
+
+showKV (k, v) = (showVal k) ++ " " ++ (showVal v)
 
 showVal (Atom a) = a
 showVal (List es)  = "(" ++ unwordsList es ++ ")"
@@ -45,6 +49,7 @@ showVal (Func { params = args, vararg = varargs,
     Nothing -> ""
     Just a  -> " . " ++ a) ++ ") ... )"
 showVal (Port _) = "<port>"
+showVal (Map kvs) = "{" ++ (intercalate ", " $ map showKV kvs) ++ "}"
 showVal Undefined = "<undefined>"
 
 instance Show Val where show = showVal

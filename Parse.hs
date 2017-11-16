@@ -45,6 +45,14 @@ parseQuoted = do
   x <- parseExpr
   return $ List [Atom "quote", x]
 
+parseMap = do char '{'
+              kvs <- sepBy (do k <- parseExpr
+                               spaces
+                               v <- parseExpr
+                               return (k, v)) spaces
+              char '}'
+              return $ Map kvs
+
 parseExpr = parseNumber
             <|> parseAtom
             <|> parseString
@@ -53,6 +61,7 @@ parseExpr = parseNumber
                    x <- try parseList <|> parseDotted
                    char ')'
                    return x
+            <|> parseMap
 
 parseExprs = endBy parseExpr spaces
 

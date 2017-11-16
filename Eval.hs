@@ -74,6 +74,7 @@ eval :: Env -> Val -> IOThrowsError Val
 eval _ val@(String _) = return val
 eval _ val@(Number _) = return val
 eval _ val@(Bool _)   = return val
+eval _ val@(Map _)    = return val
 -- quotation
 eval _ (List [Atom "quote", val]) = return val
 -- reference
@@ -233,6 +234,7 @@ eqv [List a, List b]     =
 eqv [DottedList as a, DottedList bs b] =
   -- this is pretty awful, I wonder if there's a better way
   eqv [List (as ++ [a]), List (bs ++ [b])]
+-- TODO: Map
 eqv [_, _] = return $ Bool False
 eqv bad = throwError $ WrongArity 2 bad
 
